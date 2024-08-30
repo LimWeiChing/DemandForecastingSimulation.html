@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base href="https://websim.engine.ai/demand-forecasting/" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advanced Demand Forecasting Simulation</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Roboto", sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f4f4f4;
+      }
+      .container-fluid {
+        padding: 20px;
+      }
+      h1,
+      h2,
+      h3 {
+        color: #2c3e50;
+      }
+      .card {
+        margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .chart-container {
+        height: 400px;
+      }
+      .table-container {
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .formula-display {
+        background-color: #f9f9f9;
+        padding: 15px;
+        border-radius: 5px;
+        font-family: "Courier New", monospace;
+      }
+      .tooltip-custom {
+        position: relative;
+        display: inline-block;
+        cursor: help;
+      }
+      .tooltip-custom .tooltip-text {
+        visibility: hidden;
+        width: 200px;
+        background-color: #555;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 5px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        left: 50%;
+        margin-left: -100px;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .tooltip-custom:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+      }
+      .achievement {
+        display: inline-block;
+        margin: 5px;
+        padding: 5px 10px;
+        background-color: #4caf50;
+        color: white;
+        border-radius: 20px;
+        font-size: 0.9em;
+      }
+      .chart-border {
+        border-bottom: 2px solid #2c3e50;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+      }
+      .calculation-display {
+        background-color: #e9ecef;
+        padding: 15px;
+        border-radius: 5px;
+        font-family: "Courier New", monospace;
+        margin-top: 20px;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <div class="container-fluid">
+      <h1 class="text-center mb-4">Demand Forecasting Simulation</h1>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h2 class="card-title">Control Panel</h2>
+              <select id="forecastMethod" class="form-select mb-3">
+                <option value="sma">Simple Moving Average</option>
+                <option value="wma">Weighted Moving Average</option>
+                <option value="es">Exponential Smoothing</option>
+                <option value="des">
+                  Double Exponential Smoothing (Holt's Linear Trend Model)
+                </option>
+              </select>
+              <div id="parameterInputs" class="mb-3"></div>
+              <div class="btn-group d-flex" role="group">
+                <button id="startBtn" class="btn btn-primary">Start</button>
+                <button id="stopBtn" class="btn btn-secondary">Stop</button>
+                <button id="stepBtn" class="btn btn-info">Step</button>
+                <button id="restartBtn" class="btn btn-warning">Restart</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h3 class="card-title">Scenario Customization</h3>
+              <select id="scenarioSelect" class="form-select mb-3">
+                <option value="custom">Custom</option>
+                <option value="low">Low Complexity</option>
+                <option value="medium">Medium Complexity</option>
+                <option value="high">High Complexity</option>
+              </select>
+              <div id="customScenarioInputs">
+                <label for="demandVolatility" class="form-label"
+                  >Demand Volatility (0-1):</label
+                >
+                <input
+                  type="number"
+                  class="form-control"
+                  id="demandVolatility"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value="0.5"
+                />
+                <label for="leadTime" class="form-label"
+                  >Lead Time (days):</label
+                >
+                <input
+                  type="number"
+                  class="form-control"
+                  id="leadTime"
+                  min="1"
+                  max="30"
+                  value="7"
+                />
+                <label for="economicFactor" class="form-label"
+                  >Economic Factor (-1 to 1):</label
+                >
+                <input
+                  type="number"
+                  class="form-control"
+                  id="economicFactor"
+                  min="-1"
+                  max="1"
+                  step="0.1"
+                  value="0"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card chart-border">
+            <div class="card-body">
+              <h2 class="card-title">Demand &amp; Forecast Graph</h2>
+              <div class="chart-container">
+                <canvas id="demandForecastChart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <h2 class="card-title">Forecast Calculation Details</h2>
+              <div id="calculationDisplay" class="calculation-display"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card chart-border">
+            <div class="card-body">
+              <h2 class="card-title">Forecast Error Analysis</h2>
+              <div class="chart-container">
+                <canvas id="errorAnalysisChart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <h2 class="card-title">Forecast Error Details</h2>
+              <div id="errorDisplay" class="calculation-display"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h2 class="card-title">Forecast Events</h2>
+              <div class="table-container">
+                <table id="forecastTable" class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Step</th>
+                      <th>Method</th>
+                      <th>Forecasted Demand</th>
+                      <th>Actual Demand</th>
+                      <th>MAD</th>
+                      <th>MSE</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h2 class="card-title">Demand-Affecting Events</h2>
+              <div class="table-container">
+                <table id="eventsTable" class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Step</th>
+                      <th>Event</th>
+                      <th>Impact</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="card mt-4">
+            <div class="card-body">
+              <button id="exportBtn" class="btn btn-success">
+                Export Data to Excel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-body">
+          <h2 class="card-title">Current Method Formula</h2>
+          <div id="formulaDisplay" class="formula-display"></div>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-body">
+          <h2 class="card-title">Achievements</h2>
+          <div id="achievementsContainer"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let simulationData = {
+        step: 0,
+        actualDemand: [],
+        forecastedDemand: [],
+        mad: [],
+        mse: [],
+        events: [],
+        level: null,
+        trend: null,
+      };
+
+      let charts = {};
+      let simulationInterval;
+      let achievements = new Set();
+
+      function initializeSimulation() {
+        simulationData = {
+          step: 0,
+          actualDemand: [],
+          forecastedDemand: [],
+          mad: [],
+          mse: [],
+          events: [],
+          level: null,
+          trend: null,
+        };
+        updateCharts();
+        updateTables();
+        updateAchievements();
+        updateCalculationDisplay();
+        updateErrorDisplay();
+      }
+
+      function startSimulation() {
+        stopSimulation();
+        simulationInterval = setInterval(simulationStep, 1000);
+      }
+
+      function stopSimulation() {
+        clearInterval(simulationInterval);
+      }
+
+      function simulationStep() {
+        const method = document.getElementById("forecastMethod").value;
+        const actualDemand = generateRandomDemand();
+        const forecastedDemand = calculateForecast(method, actualDemand);
+
+        simulationData.step++;
+        simulationData.actualDemand.push(actualDemand);
+        simulationData.forecastedDemand.push(forecastedDemand);
+
+        const error = Math.abs(actualDemand - forecastedDemand);
+        simulationData.mad.push(error);
+        simulationData.mse.push(error * error);
+
+        const event = generateRandomEvent();
+        simulationData.events.push(event);
+
+        updateCharts();
+        updateTables();
+        updateFormula(method);
+        updateCalculationDisplay();
+        updateErrorDisplay();
+        checkAchievements();
+      }
+
+      function generateRandomDemand() {
+        const volatility = parseFloat(
+          document.getElementById("demandVolatility").value
+        );
+        const economicFactor = parseFloat(
+          document.getElementById("economicFactor").value
+        );
+        const baselineDemand = 100;
+        const randomFactor =
+          (Math.random() - 0.5) * 2 * volatility * baselineDemand;
+        const economicImpact = economicFactor * baselineDemand;
+        return Math.max(
+          0,
+          Math.round(baselineDemand + randomFactor + economicImpact)
+        );
+      }
+
+      function generateRandomEvent() {
+        const events = [
+          { name: "Holiday Season", impact: "High increase" },
+          { name: "Economic Downturn", impact: "Moderate decrease" },
+          { name: "Competitor Sale", impact: "Slight decrease" },
+          { name: "Product Launch", impact: "High increase" },
+          { name: "Supply Chain Disruption", impact: "Moderate decrease" },
+        ];
+        return events[Math.floor(Math.random() * events.length)];
+      }
+
+      function calculateForecast(method, actualDemand) {
+        switch (method) {
+          case "sma":
+            return calculateSimpleMovingAverage(actualDemand);
+          case "wma":
+            return calculateWeightedMovingAverage(actualDemand);
+          case "es":
+            return calculateExponentialSmoothing(actualDemand);
+          case "des":
+            return calculateDoubleExponentialSmoothing(actualDemand);
+          default:
+            return actualDemand;
+        }
+      }
+
+      function calculateSimpleMovingAverage(actualDemand) {
+        const periods = parseInt(document.getElementById("smaPeriods").value);
+        if (simulationData.actualDemand.length < periods) {
+          return actualDemand;
+        }
+        const sum = simulationData.actualDemand
+          .slice(-periods)
+          .reduce((a, b) => a + b, 0);
+        return Math.round(sum / periods);
+      }
+
+      function calculateWeightedMovingAverage(actualDemand) {
+        const periods = parseInt(document.getElementById("wmaPeriods").value);
+        if (simulationData.actualDemand.length < periods) {
+          return actualDemand;
+        }
+        let sum = 0;
+        let weightSum = 0;
+        for (let i = 0; i < periods; i++) {
+          const weight = periods - i;
+          sum +=
+            simulationData.actualDemand[
+              simulationData.actualDemand.length - 1 - i
+            ] * weight;
+          weightSum += weight;
+        }
+        return Math.round(sum / weightSum);
+      }
+
+      function calculateExponentialSmoothing(actualDemand) {
+        const alpha = parseFloat(document.getElementById("esAlpha").value);
+        if (simulationData.forecastedDemand.length === 0) {
+          return actualDemand;
+        }
+        const lastForecast =
+          simulationData.forecastedDemand[
+            simulationData.forecastedDemand.length - 1
+          ];
+        return Math.round(alpha * actualDemand + (1 - alpha) * lastForecast);
+      }
+
+      function calculateDoubleExponentialSmoothing(actualDemand) {
+        const alpha = parseFloat(document.getElementById("desAlpha").value);
+        const beta = parseFloat(document.getElementById("desBeta").value);
+        if (simulationData.forecastedDemand.length === 0) {
+          return actualDemand;
+        }
+        if (simulationData.forecastedDemand.length === 1) {
+          return Math.round(
+            alpha * actualDemand +
+              (1 - alpha) * simulationData.forecastedDemand[0]
+          );
+        }
+        const lastForecast =
+          simulationData.forecastedDemand[
+            simulationData.forecastedDemand.length - 1
+          ];
+        const lastTrend = simulationData.trend || 0;
+        const lastLevel =
+          simulationData.level || simulationData.forecastedDemand[0];
+
+        const level =
+          alpha * actualDemand + (1 - alpha) * (lastLevel + lastTrend);
+        const trend = beta * (level - lastLevel) + (1 - beta) * lastTrend;
+        const forecast = level + trend;
+
+        simulationData.level = level;
+        simulationData.trend = trend;
+
+        return Math.round(forecast);
+      }
+
+      function updateCharts() {
+        if (!charts.demandForecast) {
+          charts.demandForecast = new Chart(
+            document.getElementById("demandForecastChart").getContext("2d"),
+            {
+              type: "line",
+              data: {
+                labels: [],
+                datasets: [
+                  {
+                    label: "Actual Demand",
+                    data: [],
+                    borderColor: "rgb(75, 192, 192)",
+                    tension: 0.1,
+                  },
+                  {
+                    label: "Forecasted Demand",
+                    data: [],
+                    borderColor: "rgb(255, 99, 132)",
+                    tension: 0.1,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                  },
+                },
+              },
+            }
+          );
+        }
+
+        if (!charts.errorAnalysis) {
+          charts.errorAnalysis = new Chart(
+            document.getElementById("errorAnalysisChart").getContext("2d"),
+            {
+              type: "bar",
+              data: {
+                labels: ["MAD", "MSE"],
+                datasets: [
+                  {
+                    label: "Error Metrics",
+                    data: [0, 0],
+                    backgroundColor: [
+                      "rgba(75, 192, 192, 0.2)",
+                      "rgba(255, 99, 132, 0.2)",
+                    ],
+                    borderColor: ["rgb(75, 192, 192)", "rgb(255, 99, 132)"],
+                    borderWidth: 1,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                  },
+                },
+              },
+            }
+          );
+        }
+
+        charts.demandForecast.data.labels = Array.from(
+          { length: simulationData.step },
+          (_, i) => i + 1
+        );
+        charts.demandForecast.data.datasets[0].data =
+          simulationData.actualDemand;
+        charts.demandForecast.data.datasets[1].data =
+          simulationData.forecastedDemand;
+        charts.demandForecast.update();
+
+        const avgMAD =
+          simulationData.mad.reduce((a, b) => a + b, 0) /
+            simulationData.mad.length || 0;
+        const avgMSE =
+          simulationData.mse.reduce((a, b) => a + b, 0) /
+            simulationData.mse.length || 0;
+        charts.errorAnalysis.data.datasets[0].data = [avgMAD, avgMSE];
+        charts.errorAnalysis.update();
+      }
+
+      function updateTables() {
+        const forecastTable = document
+          .getElementById("forecastTable")
+          .getElementsByTagName("tbody")[0];
+        const eventsTable = document
+          .getElementById("eventsTable")
+          .getElementsByTagName("tbody")[0];
+
+        // Clear existing rows
+        forecastTable.innerHTML = "";
+        eventsTable.innerHTML = "";
+
+        // Add new rows
+        for (let i = 0; i < simulationData.step; i++) {
+          const forecastRow = forecastTable.insertRow();
+          forecastRow.insertCell(0).textContent = i + 1;
+          forecastRow.insertCell(1).textContent =
+            document.getElementById("forecastMethod").options[
+              document.getElementById("forecastMethod").selectedIndex
+            ].text;
+          forecastRow.insertCell(2).textContent =
+            simulationData.forecastedDemand[i];
+          forecastRow.insertCell(3).textContent =
+            simulationData.actualDemand[i];
+          forecastRow.insertCell(4).textContent =
+            simulationData.mad[i].toFixed(2);
+          forecastRow.insertCell(5).textContent =
+            simulationData.mse[i].toFixed(2);
+
+          const eventRow = eventsTable.insertRow();
+          eventRow.insertCell(0).textContent = i + 1;
+          eventRow.insertCell(1).textContent = simulationData.events[i].name;
+          eventRow.insertCell(2).textContent = simulationData.events[i].impact;
+        }
+      }
+
+      function updateFormula(method) {
+        const formulaDisplay = document.getElementById("formulaDisplay");
+        switch (method) {
+          case "sma":
+            formulaDisplay.innerHTML =
+              "SMA = (D<sub>t</sub> + D<sub>t-1</sub> + ... + D<sub>t-n+1</sub>) / n<br>Where D is demand and n is the number of periods";
+            break;
+          case "wma":
+            formulaDisplay.innerHTML =
+              "WMA = (nD<sub>t</sub> + (n-1)D<sub>t-1</sub> + ... + D<sub>t-n+1</sub>) / (n + (n-1) + ... + 1)<br>Where D is demand and n is the number of periods";
+            break;
+          case "es":
+            formulaDisplay.innerHTML =
+              "F<sub>t+1</sub> = αD<sub>t</sub> + (1 - α)F<sub>t</sub><br>Where F is forecast, D is demand, and α is the smoothing factor";
+            break;
+          case "des":
+            formulaDisplay.innerHTML =
+              "Level: L<sub>t</sub> = αD<sub>t</sub> + (1 - α)(L<sub>t-1</sub> + T<sub>t-1</sub>)<br>Trend: T<sub>t</sub> = β(L<sub>t</sub> - L<sub>t-1</sub>) + (1 - β)T<sub>t-1</sub><br>Forecast: F<sub>t+1</sub> = L<sub>t</sub> + T<sub>t</sub><br>Where L is level, T is trend, D is demand, α is the level smoothing factor, and β is the trend smoothing factor";
+            break;
+        }
+      }
+
+      function updateCalculationDisplay() {
+        const method = document.getElementById("forecastMethod").value;
+        const calculationDisplay =
+          document.getElementById("calculationDisplay");
+        let calculationText = "";
+
+        switch (method) {
+          case "sma":
+            const smaPeriods = parseInt(
+              document.getElementById("smaPeriods").value
+            );
+            const smaValues = simulationData.actualDemand.slice(-smaPeriods);
+            calculationText = `Forecast Calculation (Simple Moving Average):<br>
+                    Last ${smaPeriods} values: ${smaValues.join(", ")}<br>
+                    Calculation: (${smaValues.join(" + ")}) / ${smaPeriods}<br>
+                    Forecast: ${(
+                      smaValues.reduce((a, b) => a + b, 0) / smaPeriods
+                    ).toFixed(2)}`;
+            break;
+          case "wma":
+            const wmaPeriods = parseInt(
+              document.getElementById("wmaPeriods").value
+            );
+            const wmaValues = simulationData.actualDemand.slice(-wmaPeriods);
+            const weights = Array.from(
+              { length: wmaPeriods },
+              (_, i) => wmaPeriods - i
+            );
+            const weightedSum = wmaValues.reduce(
+              (sum, value, index) => sum + value * weights[index],
+              0
+            );
+            const weightSum = weights.reduce((a, b) => a + b, 0);
+            calculationText = `Forecast Calculation (Weighted Moving Average):<br>
+                    Last ${wmaPeriods} values: ${wmaValues.join(", ")}<br>
+                    Weights: ${weights.join(", ")}<br>
+                    Calculation: (${wmaValues
+                      .map((v, i) => `${v} * ${weights[i]}`)
+                      .join(" + ")}) / ${weightSum}<br>
+                    Forecast: ${(weightedSum / weightSum).toFixed(2)}`;
+            break;
+          case "es":
+            const alpha = parseFloat(document.getElementById("esAlpha").value);
+            const lastDemand =
+              simulationData.actualDemand[
+                simulationData.actualDemand.length - 1
+              ];
+            const lastForecast =
+              simulationData.forecastedDemand[
+                simulationData.forecastedDemand.length - 1
+              ];
+            calculationText = `Forecast Calculation (Exponential Smoothing):<br>
+                    Alpha: ${alpha}<br>
+                    Last Actual Demand: ${lastDemand}<br>
+                    Last Forecast: ${lastForecast}<br>
+                    Calculation: ${alpha} * ${lastDemand} + (1 - ${alpha}) * ${lastForecast}<br>
+                    Forecast: ${(
+                      alpha * lastDemand +
+                      (1 - alpha) * lastForecast
+                    ).toFixed(2)}`;
+            break;
+          case "des":
+            const desAlpha = parseFloat(
+              document.getElementById("desAlpha").value
+            );
+            const beta = parseFloat(document.getElementById("desBeta").value);
+            const lastDemandDES =
+              simulationData.actualDemand[
+                simulationData.actualDemand.length - 1
+              ];
+            const lastForecastDES =
+              simulationData.forecastedDemand[
+                simulationData.forecastedDemand.length - 1
+              ];
+            const secondLastForecast =
+              simulationData.forecastedDemand[
+                simulationData.forecastedDemand.length - 2
+              ];
+            const lastTrend = lastForecastDES - secondLastForecast;
+            const level =
+              desAlpha * lastDemandDES +
+              (1 - desAlpha) * (lastForecastDES + lastTrend);
+            const trend =
+              beta * (level - lastForecastDES) + (1 - beta) * lastTrend;
+            calculationText = `Forecast Calculation (Double Exponential Smoothing):<br>
+                    Alpha: ${desAlpha}, Beta: ${beta}<br>
+                    Last Actual Demand: ${lastDemandDES}<br>
+                    Last Forecast: ${lastForecastDES}<br>
+                    Last Trend: ${lastTrend.toFixed(2)}<br>
+                    Level: ${desAlpha} * ${lastDemandDES} + (1 - ${desAlpha}) * (${lastForecastDES} + ${lastTrend.toFixed(
+              2
+            )}) = ${level.toFixed(2)}<br>
+                    Trend: ${beta} * (${level.toFixed(
+              2
+            )} - ${lastForecastDES}) + (1 - ${beta}) * ${lastTrend.toFixed(
+              2
+            )} = ${trend.toFixed(2)}<br>
+                    Forecast: ${level.toFixed(2)} + ${trend.toFixed(2)} = ${(
+              level + trend
+            ).toFixed(2)}`;
+            break;
+        }
+        calculationDisplay.innerHTML = calculationText;
+      }
+
+      function updateErrorDisplay() {
+        const errorDisplay = document.getElementById("errorDisplay");
+        let errorText = "";
+
+        if (simulationData.step > 0) {
+          const lastActualDemand =
+            simulationData.actualDemand[simulationData.actualDemand.length - 1];
+          const lastForecastedDemand =
+            simulationData.forecastedDemand[
+              simulationData.forecastedDemand.length - 1
+            ];
+          const lastMAD =
+            simulationData.mad.reduce((a, b) => a + b, 0) /
+            simulationData.mad.length;
+          const lastMSE =
+            simulationData.mse.reduce((a, b) => a + b, 0) /
+            simulationData.mse.length;
+          const lastEvent =
+            simulationData.events[simulationData.events.length - 1];
+
+          errorText = `Forecast Error Details (Step ${simulationData.step}):<br>
+                Actual Demand: ${lastActualDemand}<br>
+                Forecasted Demand: ${lastForecastedDemand}<br>
+                Absolute Error: ${Math.abs(
+                  lastActualDemand - lastForecastedDemand
+                ).toFixed(2)}<br>
+                Mean Absolute Deviation (MAD): ${lastMAD.toFixed(2)}<br>
+                Mean Squared Error (MSE): ${lastMSE.toFixed(2)}<br>
+                Recent Event: ${lastEvent.name} (Impact: ${lastEvent.impact})`;
+        } else {
+          errorText = "No forecast data available yet.";
+        }
+
+        errorDisplay.innerHTML = errorText;
+      }
+
+      function updateParameterInputs() {
+        const method = document.getElementById("forecastMethod").value;
+        const parameterInputs = document.getElementById("parameterInputs");
+        parameterInputs.innerHTML = "";
+
+        switch (method) {
+          case "sma":
+            parameterInputs.innerHTML =
+              '<label for="smaPeriods" class="form-label">Number of Periods:</label><input type="number" class="form-control" id="smaPeriods" value="3" min="1" max="10">';
+            break;
+          case "wma":
+            parameterInputs.innerHTML =
+              '<label for="wmaPeriods" class="form-label">Number of Periods:</label><input type="number" class="form-control" id="wmaPeriods" value="3" min="1" max="10">';
+            break;
+          case "es":
+            parameterInputs.innerHTML =
+              '<label for="esAlpha" class="form-label">Alpha (0-1):</label><input type="number" class="form-control" id="esAlpha" value="0.2" min="0" max="1" step="0.1">';
+            break;
+          case "des":
+            parameterInputs.innerHTML =
+              '<label for="desAlpha" class="form-label">Alpha (0-1):</label><input type="number" class="form-control" id="desAlpha" value="0.2" min="0" max="1" step="0.1">' +
+              '<label for="desBeta" class="form-label">Beta (0-1):</label><input type="number" class="form-control" id="desBeta" value="0.1" min="0" max="1" step="0.1">';
+            break;
+        }
+      }
+
+      function checkAchievements() {
+        const avgMAD =
+          simulationData.mad.reduce((a, b) => a + b, 0) /
+          simulationData.mad.length;
+        if (avgMAD < 10 && simulationData.step >= 10) {
+          achievements.add("High Accuracy");
+        }
+        if (simulationData.step >= 50) {
+          achievements.add("Persistent Forecaster");
+        }
+        if (
+          simulationData.events.filter((e) => e.impact === "High increase")
+            .length >= 5
+        ) {
+          achievements.add("Demand Surge Survivor");
+        }
+        updateAchievements();
+      }
+
+      function updateAchievements() {
+        const container = document.getElementById("achievementsContainer");
+        container.innerHTML = "";
+        achievements.forEach((achievement) => {
+          const badge = document.createElement("span");
+          badge.className = "achievement";
+          badge.textContent = achievement;
+          container.appendChild(badge);
+        });
+      }
+
+      document
+        .getElementById("forecastMethod")
+        .addEventListener("change", () => {
+          updateParameterInputs();
+          updateFormula(document.getElementById("forecastMethod").value);
+          updateCalculationDisplay();
+          updateErrorDisplay();
+        });
+      document
+        .getElementById("startBtn")
+        .addEventListener("click", startSimulation);
+      document
+        .getElementById("stopBtn")
+        .addEventListener("click", stopSimulation);
+      document
+        .getElementById("stepBtn")
+        .addEventListener("click", simulationStep);
+      document
+        .getElementById("restartBtn")
+        .addEventListener("click", initializeSimulation);
+
+      document
+        .getElementById("scenarioSelect")
+        .addEventListener("change", function () {
+          const customInputs = document.getElementById("customScenarioInputs");
+          if (this.value === "custom") {
+            customInputs.style.display = "block";
+          } else {
+            customInputs.style.display = "none";
+            // Set predefined values for different complexity levels
+            switch (this.value) {
+              case "low":
+                document.getElementById("demandVolatility").value = 0.2;
+                document.getElementById("leadTime").value = 3;
+                document.getElementById("economicFactor").value = 0.1;
+                break;
+              case "medium":
+                document.getElementById("demandVolatility").value = 0.5;
+                document.getElementById("leadTime").value = 7;
+                document.getElementById("economicFactor").value = 0;
+                break;
+              case "high":
+                document.getElementById("demandVolatility").value = 0.8;
+                document.getElementById("leadTime").value = 14;
+                document.getElementById("economicFactor").value = -0.2;
+                break;
+            }
+          }
+        });
+
+      document
+        .getElementById("exportBtn")
+        .addEventListener("click", function () {
+          const forecastTable = document
+            .getElementById("forecastTable")
+            .getElementsByTagName("tbody")[0];
+          const eventsTable = document
+            .getElementById("eventsTable")
+            .getElementsByTagName("tbody")[0];
+
+          // Create a new workbook
+          const wb = XLSX.utils.book_new();
+
+          // Convert Forecast Events table to worksheet
+          const forecastData = [];
+          forecastData.push([
+            "Step",
+            "Method",
+            "Forecasted Demand",
+            "Actual Demand",
+            "MAD",
+            "MSE",
+          ]);
+          for (let row of forecastTable.rows) {
+            forecastData.push(
+              Array.from(row.cells).map((cell) => cell.textContent)
+            );
+          }
+          const forecastSheet = XLSX.utils.aoa_to_sheet(forecastData);
+          XLSX.utils.book_append_sheet(wb, forecastSheet, "Forecast Events");
+
+          // Convert Demand-Affecting Events table to worksheet
+          const eventsData = [];
+          eventsData.push(["Step", "Event", "Impact"]);
+          for (let row of eventsTable.rows) {
+            eventsData.push(
+              Array.from(row.cells).map((cell) => cell.textContent)
+            );
+          }
+          const eventsSheet = XLSX.utils.aoa_to_sheet(eventsData);
+          XLSX.utils.book_append_sheet(
+            wb,
+            eventsSheet,
+            "Demand-Affecting Events"
+          );
+
+          // Export the workbook to Excel file
+          XLSX.writeFile(wb, "Forecast_And_Events_Data.xlsx");
+        });
+
+      updateParameterInputs();
+      updateFormula("sma");
+      initializeSimulation();
+    </script>
+  </body>
+</html>
